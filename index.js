@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 require("dotenv").config();
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const port = process.env.PORT || 5000;
 
 
@@ -36,27 +36,40 @@ async function run() {
         app.get('/api/v1/jobs', async (req, res) => {
 
             try {
-                let categoryFilter = {}
-                let sortObj = {}
+                const email = req.query.user_email
                 const category = req.query.job_category;
-                const sortField = req.query.sortField;
-                const sortOrder = req.query.sortOrder;
-                console.log(sortField)
+
+                const filter = {}
 
                 if (category) {
-                    categoryFilter.job_category = category
-                }
-                if (sortField && sortOrder) {
-                    sortObj[sortField] = sortOrder
+                    filter.job_category = category
                 }
 
-
-                console.log(categoryFilter)
-                const result = await jobsCollection.find(categoryFilter).sort(sortObj).toArray();
+                if (email) {
+                    filter.user_email = email;
+                }
+                const result = await jobsCollection.find(filter).toArray();
                 res.send(result);
             } catch (error) {
                 console.log(error)
             }
+        })
+        app.post('/api/v1/jobs', async (req, res) => {
+            try {
+                const job = req.body;
+                const result = await jobsCollection.insertOne(job);
+                res.send(result);
+            } catch (error) {
+                console.log(error.message);
+            }
+        })
+
+        app.delete('/api/v1/jobs/delete/:id', async (req, res) => {
+            const id = req.params.id;
+
+            const query = { _id: new ObjectId(id) };
+            const result = await jobsCollection.deleteOne(query);
+            res.send(result);
 
         })
 
