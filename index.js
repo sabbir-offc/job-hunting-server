@@ -29,22 +29,19 @@ async function run() {
         // Connect the client to the server	(optional starting in v4.7)
         // await client.connect();
         const jobsCollection = client.db("jobHuntingDB").collection("jobs");
+        const applicationCollection = client.db("jobHuntingDB").collection("application");
 
 
 
         // http://localhost:5000/api/v1/jobs?sortField=price&sortOrder=asc
         app.get('/api/v1/jobs', async (req, res) => {
-
             try {
                 const email = req.query.user_email
                 const category = req.query.job_category;
-
                 const filter = {}
-
                 if (category) {
                     filter.job_category = category
                 }
-
                 if (email) {
                     filter.user_email = email;
                 }
@@ -54,6 +51,7 @@ async function run() {
                 console.log(error)
             }
         })
+
         app.post('/api/v1/jobs', async (req, res) => {
             try {
                 const job = req.body;
@@ -63,14 +61,77 @@ async function run() {
                 console.log(error.message);
             }
         })
+        //getting single jobs for showing the job details.
+        app.get('/api/v1/jobs/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+                const query = { _id: new ObjectId(id) };
+                const result = await jobsCollection.findOne(query);
+                res.send(result)
+
+            } catch (error) {
+                console.log(error.message)
+            }
+        })
+        app.put('/api/v1/jobs/:id', async (req, res) => {
+            try {
+                const job = req.body;
+                const id = req.params.id;
+                const filter = { _id: new ObjectId(id) };
+                const options = { upsert: true };
+
+                const updatedJob = {
+                    $set: {
+                        job_image: job.job_image,
+                        job_title: job.job_title,
+                        job_description: job.job_description,
+                        job_category: job.job_category,
+                        job_salary: job.job_salary,
+                        job_posting_data: job.job_posting_data,
+                        job_application_deadline: job.job_application_deadline,
+                    },
+                };
+                const result = await jobsCollection.updateOne(filter, updatedJob, options);
+                res.send(result);
+
+            } catch (error) {
+                console.log(error.message)
+            }
+        })
 
         app.delete('/api/v1/jobs/delete/:id', async (req, res) => {
-            const id = req.params.id;
+            try {
+                const id = req.params.id;
+                const query = { _id: new ObjectId(id) };
+                const result = await jobsCollection.deleteOne(query);
+                res.send(result);
+            } catch (error) {
+                console.log(error.message)
+            }
 
-            const query = { _id: new ObjectId(id) };
-            const result = await jobsCollection.deleteOne(query);
-            res.send(result);
+        })
 
+        app.post('/api/v1/make-application', async (req, res) => {
+            try {
+                const application = req.body;
+                const result = await applicationCollection.insertOne(application);
+                res.send(result);
+            } catch (error) {
+                console.log(error.message)
+            }
+        })
+        app.get('/api/v1/applications', async (req, res) => {
+            let query = {}
+            const userEmail = req.query.user_email;
+            if (userEmail) {
+                query.user_email = userEmail
+            }
+
+
+
+            console.log(query)
+            const result = await applicationCollection.find(query).toArray();
+            res.send(result)
         })
 
 
