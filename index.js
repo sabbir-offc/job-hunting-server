@@ -2,13 +2,20 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 require("dotenv").config();
+const cookieParser = require("cookie-parser");
 const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const jwt = require('jsonwebtoken');
 const port = process.env.PORT || 5000;
 
 
 //middleware
 app.use(express.json());
-app.use(cors())
+app.use(cookieParser());
+app.use(cors({
+    origin: ['http://localhost:5173', 'https://job-hunting-cf12c.web.app'],
+    credentials: true
+}
+));
 
 
 
@@ -31,9 +38,43 @@ async function run() {
         const jobsCollection = client.db("jobHuntingDB").collection("jobs");
         const applicationCollection = client.db("jobHuntingDB").collection("application");
 
+        //verify Token
+        const verifyToken = async (req, res, next) => {
+            try {
+                const { token } = req?.cookies;
+                if (!token) {
+                    return res.status(401).send({ message: 'unAuthorized' })
+                }
+                jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
+                    if (err) {
+                        return res.status(401).send({ message: 'unAuthorized' })
+                    }
+                    req.user = decoded;
+                    next()
+                })
+            } catch (error) {
+                console.log(error.message)
+            }
 
+        }
+        //jwt 
+        app.post('/api/v1/auth/access-token', async (req, res) => {
+            try {
+                const userEmail = req.body
+                const token = jwt.sign(userEmail, process.env.ACCESS_TOKEN, {
+                    expiresIn: '1h'
+                })
+                res.cookie('token', token, {
+                    httpOnly: true,
+                    secure: true,
+                    sameSite: 'none'
 
-        // http://localhost:5000/api/v1/jobs?sortField=price&sortOrder=asc
+                }).send({ success: true })
+            } catch (error) {
+                console.log(error.message)
+            }
+
+        })
         app.get('/api/v1/jobs', async (req, res) => {
             try {
                 const email = req.query.user_email
@@ -120,16 +161,18 @@ async function run() {
                 console.log(error.message)
             }
         })
-        app.get('/api/v1/applications', async (req, res) => {
-            let query = {}
+        app.get('/api/v1/applications', verifyToken, async (req, res) => {
+            const user = req?.user;
             const userEmail = req.query.user_email;
-            if (userEmail) {
-                query.user_email = userEmail
+            let query = {}
+            if (user?.email !== userEmail) {
+                return res.status(403).send({ message: "forbidden access." })
             }
 
 
-
-            console.log(query)
+            if (userEmail) {
+                query.user_email = userEmail
+            }
             const result = await applicationCollection.find(query).toArray();
             res.send(result)
         })
