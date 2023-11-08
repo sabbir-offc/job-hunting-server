@@ -65,7 +65,7 @@ async function run() {
             try {
                 const userEmail = req.body
                 const token = jwt.sign(userEmail, process.env.ACCESS_TOKEN, {
-                    expiresIn: '1h'
+                    expiresIn: '2h'
                 })
                 res.cookie('token', token, {
                     httpOnly: true,
@@ -237,28 +237,15 @@ async function run() {
             const user = req?.user;
             const userEmail = req.query.user_email;
             const filter = {}
-            if (user?.email !== userEmail) {
-                return res.status(403).send({ message: "forbidden access." })
-            }
             if (userEmail) {
                 filter.user_email = userEmail
+            }
+            if (user?.email !== userEmail) {
+                return res.status(403).send({ message: "forbidden access." })
             }
             const result = await savedJobs.find(filter).toArray();
             res.send(result)
         })
-
-        app.delete('/api/v1/saved-jobs/:id', async (req, res) => {
-            try {
-                const id = req.params.id;
-                const query = { _id: new ObjectId(id) };
-                const result = await savedJobs.deleteOne(query);
-                res.send(result);
-            } catch (error) {
-                console.log(error.message)
-            }
-        })
-
-
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log("Pinged your deployment. You successfully connected to MongoDB!");
