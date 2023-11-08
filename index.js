@@ -37,6 +37,9 @@ async function run() {
         // await client.connect();
         const jobsCollection = client.db("jobHuntingDB").collection("jobs");
         const applicationCollection = client.db("jobHuntingDB").collection("application");
+        const blogsCollection = client.db("jobHuntingDB").collection("blogs");
+        const usersCollection = client.db("jobHuntingDB").collection("users");
+        const savedJobs = client.db("jobHuntingDB").collection("savedJobs");
 
         //verify Token
         const verifyToken = async (req, res, next) => {
@@ -119,11 +122,8 @@ async function run() {
             try {
                 const job = req.body;
                 const id = req.params.id;
-                console.log('id', id)
-                console.log(job)
                 const filter = { _id: new ObjectId(id) };
                 const options = { upsert: true };
-
                 const updatedJob = {
                     $set: {
                         job_image: job.job_image,
@@ -177,17 +177,85 @@ async function run() {
         app.get('/api/v1/applications', verifyToken, async (req, res) => {
             const user = req?.user;
             const userEmail = req.query.user_email;
-            let query = {}
+            const category = req.query.job_category
+            const filter = {}
+            if (category) {
+                filter.job_category = category
+            }
             if (user?.email !== userEmail) {
                 return res.status(403).send({ message: "forbidden access." })
             }
 
 
             if (userEmail) {
-                query.user_email = userEmail
+                filter.user_email = userEmail
             }
-            const result = await applicationCollection.find(query).toArray();
+            const result = await applicationCollection.find(filter).toArray();
             res.send(result)
+        })
+
+        app.post('/api/v1/blogs', async (req, res) => {
+            const blog = req.body;
+            const result = await blogsCollection.insertOne(blog);
+            res.send(result);
+        })
+
+        app.get('/api/v1/blogs', async (req, res) => {
+            const result = await blogsCollection.find().toArray();
+            res.send(result);
+        })
+        app.get('/api/v1/blogs/:id', async (req, res) => {
+            const id = req.params.id
+            const query = { _id: new ObjectId(id) }
+            const result = await blogsCollection.findOne(query);
+            res.send(result);
+        })
+
+        app.post('/api/v1/users', async (req, res) => {
+            const user = req.body;
+            const result = await usersCollection.insertOne(user);
+            res.send(result);
+        })
+        app.get('/api/v1/users', async (req, res) => {
+            const result = await usersCollection.find().toArray();
+            res.send(result);
+        })
+
+
+        app.post('/api/v1/saved-jobs', async (req, res) => {
+            try {
+
+                const savedJob = req.body;
+                console.log(savedJob)
+                const result = await savedJobs.insertOne(savedJob);
+                res.send(result);
+            } catch (error) {
+                console.log(error.message)
+            }
+        })
+        app.get('/api/v1/saved-jobs', verifyToken, async (req, res) => {
+            const user = req?.user;
+            const userEmail = req.query.user_email;
+            const filter = {}
+            if (user?.email !== userEmail) {
+                return res.status(403).send({ message: "forbidden access." })
+            }
+            if (userEmail) {
+                filter.user_email = userEmail
+            }
+            const result = await savedJobs.find(filter).toArray();
+            res.send(result)
+        })
+
+        app.delete('/api/v1/saved-jobs/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+                const query = { _id: new ObjectId(id) };
+                const result = await savedJobs.deleteOne(query);
+                res.send(result);
+            } catch (error) {
+                console.log(error.message)
+            }
         })
 
 
@@ -210,4 +278,4 @@ app.get('/', async (req, res) => {
 
 app.listen(port, () => {
     console.log(`Sever running on PORT: ${port}`)
-})
+}) 
