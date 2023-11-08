@@ -60,6 +60,25 @@ async function run() {
             }
 
         }
+
+
+        const gateMan = async (req, res, next) => {
+            try {
+                const { token } = req?.cookies;
+                if (!token) {
+                    return res.status(401).send({ message: 'unAuthorized' })
+                }
+                jwt.verify(token, process.env.ACCESS_TOKEN, (err, decoded) => {
+                    if (err) {
+                        return res.status(401).send({ message: 'unAuthorized' })
+                    }
+                    req.data = decoded;
+                    next()
+                })
+            } catch (error) {
+                console.log(error.message)
+            }
+        }
         //jwt 
         app.post('/api/v1/auth/access-token', async (req, res) => {
             try {
@@ -224,25 +243,23 @@ async function run() {
 
         app.post('/api/v1/saved-jobs', async (req, res) => {
             try {
-
                 const savedJob = req.body;
-                console.log(savedJob)
                 const result = await savedJobs.insertOne(savedJob);
                 res.send(result);
             } catch (error) {
                 console.log(error.message)
             }
         })
-        app.get('/api/v1/saved-jobs', verifyToken, async (req, res) => {
-            const user = req?.user;
-            const userEmail = req.query.user_email;
-            const filter = {}
+        app.get('/api/v1/saved-jobs', gateMan, async (req, res) => {
+            const user = req.data
+            const userEmail = req.query?.user_email;
+            let filter = {};
             if (userEmail) {
                 filter.user_email = userEmail
-            }
+            };
             if (user?.email !== userEmail) {
                 return res.status(403).send({ message: "forbidden access." })
-            }
+            };
             const result = await savedJobs.find(filter).toArray();
             res.send(result)
         })
@@ -265,4 +282,5 @@ app.get('/', async (req, res) => {
 
 app.listen(port, () => {
     console.log(`Sever running on PORT: ${port}`)
-}) 
+})
+
