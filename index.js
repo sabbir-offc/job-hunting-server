@@ -102,6 +102,7 @@ async function run() {
                 console.log(error.message);
             }
         })
+
         //getting single jobs for showing the job details.
         app.get('/api/v1/jobs/:id', async (req, res) => {
             try {
@@ -118,6 +119,8 @@ async function run() {
             try {
                 const job = req.body;
                 const id = req.params.id;
+                console.log('id', id)
+                console.log(job)
                 const filter = { _id: new ObjectId(id) };
                 const options = { upsert: true };
 
@@ -127,7 +130,8 @@ async function run() {
                         job_title: job.job_title,
                         job_description: job.job_description,
                         job_category: job.job_category,
-                        job_salary: job.job_salary,
+                        minimum_salary: job.minimum_salary,
+                        maximum_salary: job.maximum_salary,
                         job_posting_data: job.job_posting_data,
                         job_application_deadline: job.job_application_deadline,
                     },
@@ -160,6 +164,15 @@ async function run() {
             } catch (error) {
                 console.log(error.message)
             }
+        })
+
+        app.post('/api/v1/job-application-number/:id', async (req, res) => {
+            const id = req.params.id;
+            const result = await jobsCollection.updateOne(
+                { _id: new ObjectId(id) },
+                { $inc: { job_application_number: 1 } }
+            );
+            res.send(result);
         })
         app.get('/api/v1/applications', verifyToken, async (req, res) => {
             const user = req?.user;
