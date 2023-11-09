@@ -88,8 +88,8 @@ async function run() {
                 })
                 res.cookie('token', token, {
                     httpOnly: true,
-                    secure: true,
-                    sameSite: 'none'
+                    secure: false,
+                    // sameSite: 'none'
 
                 }).send({ success: true })
             } catch (error) {
@@ -178,8 +178,18 @@ async function run() {
         app.post('/api/v1/make-application', async (req, res) => {
             try {
                 const application = req.body;
-                const result = await applicationCollection.insertOne(application);
-                res.send(result);
+                const jobId = application?.jobId
+                const existingApplication = await applicationCollection.findOne({ jobId });
+                if (existingApplication) {
+                    await applicationCollection.updateOne(
+                        { jobId },
+                        { $set: application }
+                    );
+                    res.send({ message: "You Already applied to this job." });
+                } else {
+                    const result = await applicationCollection.insertOne(application);
+                    res.send(result);
+                }
             } catch (error) {
                 console.log(error.message)
             }
@@ -192,6 +202,16 @@ async function run() {
                 { $inc: { job_application_number: 1 } }
             );
             res.send(result);
+        })
+        app.delete('/api/v1/applications/delete/:id', async (req, res) => {
+            try {
+                const id = req.params.id;
+                const query = { _id: new ObjectId(id) }
+                const result = await applicationCollection.deleteOne(query);
+                res.send(result);
+            } catch (error) {
+                console.log(error.message)
+            }
         })
         app.get('/api/v1/applications', verifyToken, async (req, res) => {
             const user = req?.user;
@@ -252,10 +272,10 @@ async function run() {
         })
         app.get('/api/v1/saved-jobs', gateMan, async (req, res) => {
             const user = req.data
-            const userEmail = req.query?.user_email;
+            const userEmail = req.query?.email;
             let filter = {};
             if (userEmail) {
-                filter.user_email = userEmail
+                filter.email = userEmail
             };
             if (user?.email !== userEmail) {
                 return res.status(403).send({ message: "forbidden access." })
