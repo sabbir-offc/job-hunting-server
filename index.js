@@ -255,6 +255,9 @@ async function run() {
             const result = await usersCollection.insertOne(user);
             res.send(result);
         })
+
+
+
         app.get('/api/v1/users', async (req, res) => {
             const result = await usersCollection.find().toArray();
             res.send(result);
